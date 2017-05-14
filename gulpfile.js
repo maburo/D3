@@ -1,18 +1,22 @@
 'use strict';
 
-var gulp        = require('gulp');
-var uglify      = require('gulp-uglify');
-var es          = require('event-stream');
-var del         = require('del');
-var minimist    = require('minimist');
-var browserSync = require('browser-sync');
-var gulpif      = require('gulp-if');
+const gulp        = require('gulp');
+const uglify      = require('gulp-uglify');
+const es          = require('event-stream');
+const del         = require('del');
+const minimist    = require('minimist');
+const browserSync = require('browser-sync');
+const gulpif      = require('gulp-if');
+const babel       = require('gulp-babel');
+const browserify  = require('gulp-browserify');
+const sourcemaps  = require('gulp-sourcemaps');
+const plumber     = require('gulp-plumber');
+const notifier    = require('node-notifier');
 
-//var browserify  = require('browserify');
-var browserify = require('gulp-browserify');
-var sourcemaps = require('gulp-sourcemaps');
-  
-//var properties  = require('./properties.js');
+function onError(err) {
+  console.error(err);
+  notifier.notify({title: 'Ошибка', message: err.message});
+}
 
 var settings = {
   type:     null,           // Тип билда (для настроек и фильтрации файлов)
@@ -45,15 +49,9 @@ var knownOptions = {
 var cmdOptions = minimist(process.argv.slice(2), knownOptions);
 
 try {
- /* var p = properties[cmdOptions.target];
-  settings.jsValues = p.tmpl;
-  settings.dest = p.dest || settings.dest;*/
-
   settings.jsmin = cmdOptions.jsmin;
   settings.cssmin = cmdOptions.cssmin;
   settings.htmlmin = cmdOptions.htmlmin;
- // settings.context = {context: p.context};
-  //settings.type = cmdOptions.type || p.type;
 
   console.log('Type: ' + settings.type, 'Target: ' + cmdOptions.target);
 
@@ -71,29 +69,6 @@ try {
 /**********************************************************************************************
  * ТАСКИ
  */
-
-gulp.task('default', function() {
-  var targets = '';
-  //var delimetr = '';
-/*  for (var k in properties) {
-    targets +=  delimetr + k;
-    delimetr = ', ';
-  }*/
-
-  console.log('Как пользоваться: gulp build --type [type] --target [target] --jsmin [true|false]' +
-    '\n\t\t\t --cssmin [true|false] --htmlmin [true|false] --notify [true|false]\n');
-  console.log('\t- Параметры по умолчанию:', JSON.stringify(knownOptions['default']));
-  console.log('\t- Запуск локального сервера: gulp server [параметры]');
-  console.log('\t- Билд клиента: gulp build [параметры]\n');
-  console.log('\t- Параметры:');
-  console.log('\t\t* type - тип билда клиента (ext - внешний, sbbol - сбербанк)');
-  console.log('\t\t* target - выбор сервера', targets);
-  console.log('\t\t* jsmin - минификация JS кода');
-  console.log('\t\t* cssmin - минификация CSS кода');
-  console.log('\t\t* htmlmin - минификация HTML кода');
-  console.log('\t\t* notify - показывать уведомления');
-});
-
 
 /**
  * Зачистка
@@ -122,10 +97,9 @@ function addWatcher(path, taskName) {
 /**
  * Сервер
  */
-gulp.task('serve', ['clean', 'browserify', 'copy-static'], function() {
+gulp.task('serve', ['build'], function() {
   addWatcher(['app/js/**/*.js'], 'browserify');
-  addWatcher(['app/views/**/*.html', 'app/*.html'], 'copy-static');
-
+  addWatcher(['app/views/**/*.html', 'app/*.html', 'app/data/*.*'], 'copy-static');
   //addWatcher(['app/images/**', 'app/*'], 'copy-static');
 
   browserSync({
@@ -138,19 +112,19 @@ gulp.task('serve', ['clean', 'browserify', 'copy-static'], function() {
       // }
     },
     port: 9000,
-    open: true
+    open: false
   });
 });
 
 /**
  * Собственоо билд
  */
-gulp.task('build', ['clean', 'browserify', 'copy-static'], function() {
+gulp.task('build', ['clean', 'browserify', 'copy-static', 'html'], function() {
 
 });
 
 gulp.task('copy-static', function() {
-  var tasks = ['images', 'fonts'].map(function(entry) {
+  var tasks = ['images', 'fonts', 'data'].map(function(entry) {
     return gulp.src('app/' + entry + '/**')
     .pipe(gulp.dest(settings.dest + '/' + entry));
   });
@@ -161,11 +135,22 @@ gulp.task('copy-static', function() {
   es.concat.apply(null, tasks);
 });
 
+gulp.task('html', function() {
+  var tasks = settings.htmlSrc
+  .map(function(entry) {
+    return gulp.src(entry.src)
+    .pipe(gulp.dest(settings.dest + '/' + entry.dest));
+  });
+
+  return es.concat.apply(null, tasks);
+});
 
 gulp.task('browserify', function() {
   return gulp.src(['app/js/main.js'])
+    .pipe(plumber({errorHandler: onError}))
     .pipe(browserify())
     .pipe(sourcemaps.init({loadMaps: true}))
+    .pipe(babel({presets: ['es2015']}))
     .pipe(gulpif(settings.jsmin, uglify()))
     .pipe(sourcemaps.write('./'))
     .pipe(gulp.dest(settings.dest + '/js'));
