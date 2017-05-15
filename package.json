@@ -20,11 +20,6 @@
     "gulp-babel": "^6.1.2",
     "gulp-browserify": "^0.5.1",
     "gulp-plumber": "^1.1.0",
-    "jasmine-core": "^2.6.1",
-    "karma": "^1.6.0",
-    "karma-jasmine": "^1.1.0",
-    "karma-phantomjs-launcher": "^1.0.4",
-    "karma-requirejs": "^1.1.0",
     "minimist": "^1.2.0",
     "node-notifier": "^5.1.2",
     "requirejs": "^2.3.3"
