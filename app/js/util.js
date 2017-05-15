@@ -8,7 +8,6 @@ function createCssClass(name, content) {
   }
 
   html += '}';
-  console.log(html);
 
   style.innerHTML = html;
   document.getElementsByTagName('head')[0].appendChild(style);
